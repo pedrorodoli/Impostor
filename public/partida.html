@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMPOSTOR - Partida</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Pantalla sala de espera -->
+        <div id="pantalla-sala" class="hidden">
+            <div class="top-bar">
+                <button class="back-btn" onclick="salirPartida()">← SALIR</button>
+                <button class="share-btn" onclick="compartirPartida()">🔗 COMPARTIR</button>
+            </div>
+            
+            <div class="lobby-header">
+                <h1 id="nombre-sala">Pe</h1>
+                <p>Código: <span id="codigo-sala"></span></p>
+            </div>
+            
+            <div class="card">
+                <h3>SALA DE ESPERA</h3>
+                <p style="text-align: center; color: #666; margin-bottom: 20px;">
+                    Esperando que el creador inicie la partida...
+                </p>
+                
+                <h4 style="margin-bottom: 15px;">👥 Jugadores (<span id="num-jugadores">1</span>)</h4>
+                <div id="lista-jugadores"></div>
+                
+                <div class="info-box" style="margin-top: 20px;">
+                    <span>ℹ️</span>
+                    <span>Se necesitan al menos 3 jugadores.</span>
+                </div>
+                
+                <p style="text-align: center; margin: 20px 0; color: #666;">
+                    Impostores: <span id="info-impostores">1</span> | Paquetes: <span id="info-paquetes">1</span>
+                </p>
+                
+                <button id="btn-empezar-partida" class="btn-primary hidden" onclick="iniciarPartida()">
+                    ▶ EMPEZAR PARTIDA
+                </button>
+            </div>
+            
+            <div id="config-partida" class="card hidden">
+                <h3>CONFIGURACIÓN</h3>
+                
+                <div class="input-group">
+                    <label>Número de impostores</label>
+                    <input type="number" id="num-impostores" min="1" value="1" onchange="actualizarNumImpostores()">
+                </div>
+                
+                <h4 style="margin-top: 20px; margin-bottom: 10px;">Seleccionar Paquetes</h4>
+                <div id="lista-paquetes-partida"></div>
+            </div>
+        </div>
+
+        <!-- Pantalla de juego -->
+        <div id="pantalla-juego" class="hidden">
+            <div id="rol-ocultable" class="card hidden">
+                <button id="btn-ocultar-rol" onclick="toggleRol()" style="position: absolute; top: 10px; right: 10px; width: auto; padding: 5px 10px; font-size: 0.8em; white-space: nowrap;" class="hidden">Ocultar</button>
+                <div id="mi-rol-contenido"></div>
+            </div>
+
+            <div class="top-bar">
+                <button class="back-btn" onclick="salirPartida()">← SALIR</button>
+                <button id="btn-ver-rol" class="btn-secondary" style="width: auto; white-space: nowrap;" onclick="toggleRol(true)">VER MI ROL</button>
+            </div>
+            
+            <div class="lobby-header">
+                <h1 id="nombre-sala-juego">Pe</h1>
+                <p>Ronda: <span id="ronda-actual">1</span></p>
+            </div>
+            
+            <div id="turno-actual" class="card hidden">
+                <div class="turno-indicator">
+                    <h3>Turno de: <span id="nombre-turno"></span></h3>
+                </div>
+                <button class="btn-primary" onclick="siguienteTurno()">
+                    → SIGUIENTE
+                </button>
+            </div>
+            
+            <div id="votacion" class="card hidden">
+                <h3>VOTACIÓN</h3>
+                <div id="tiempo-votacion" style="text-align: center; font-size: 2em; margin-bottom: 15px;"></div>
+                <p style="text-align: center; margin-bottom: 20px;">
+                    Vota quién crees que es el impostor
+                </p>
+                <div id="opciones-votacion" class="votacion-grid"></div>
+            </div>
+            
+            <div id="resultado-votacion" class="card hidden">
+                <h3>JUGADOR EXPULSADO</h3>
+                <div id="info-expulsado"></div>
+            </div>
+        </div>
+
+        <!-- Pantalla final -->
+        <div id="pantalla-final" class="hidden">
+            <div class="card">
+                <h1 id="titulo-final">¡VICTORIA!</h1>
+                <h2 id="mensaje-final"></h2>
+                
+                <div id="lista-jugadores-final"></div>
+                
+                <button id="btn-volver-jugar" class="btn-primary hidden" onclick="volverJugar()">
+                    🔄 VOLVER A JUGAR
+                </button>
+                
+                <button class="btn-secondary" onclick="volverInicio()" style="margin-top: 10px;">
+                    🏠 VOLVER AL INICIO
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Ingresar Nombre -->
+        <div id="modal-ingresar-nombre" class="modal hidden">
+            <div class="modal-content">
+                <h2>Ingresa tu Nombre</h2>
+                <p style="margin-bottom: 20px;">Necesitas un nombre para unirte a la partida.</p>
+                <div class="input-group">
+                    <label>TU NOMBRE</label>
+                    <input type="text" id="nombre-jugador-input" placeholder="Tu nombre...">
+                </div>
+                <button class="btn-primary" onclick="submitNombreJugador()">
+                    CONTINUAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let gameCodeFromUrl = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Always try to get game code from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            gameCodeFromUrl = urlParams.get('codigo');
+
+            if (!gameCodeFromUrl) {
+                // If no game code, something is wrong, redirect to home
+                volverInicio();
+            }
+        });
+
+        function submitNombreJugador() {
+            const nombreInput = document.getElementById('nombre-jugador-input');
+            const nombre = nombreInput.value.trim();
+
+            if (nombre) {
+                localStorage.setItem('nombreJugador', nombre);
+                miNombre = nombre;
+                document.getElementById('modal-ingresar-nombre').classList.add('hidden');
+                // Now that we have the name, emit unirse-partida
+                socket.emit('unirse-partida', { codigo: gameCodeFromUrl, nombre: miNombre, usuarioUuid: currentUserUuid });
+            } else {
+                alert('Por favor, ingresa un nombre válido.');
+            }
+        }
+
+        // Functions specific to partida.html
+        function salirPartida() {
+            if (confirm('¿Seguro que quieres salir de la partida?')) {
+                volverInicio();
+                partidaActual = null;
+                esCreador = false;
+            }
+        }
+
+        function compartirPartida() {
+            if (partidaActual) {
+                const shareLink = `${window.location.origin}/partida.html?codigo=${partidaActual.codigo}`;
+                const shareData = {
+                    title: 'Únete a mi partida de Impostor!',
+                    url: shareLink,
+                };
+
+                if (navigator.share) {
+                    navigator.share(shareData)
+                        .then(() => showToast('Partida compartida con éxito!'))
+                        .catch((err) => {
+                            console.error('Error al compartir:', err);
+                            // Fallback to clipboard if share fails or is cancelled
+                            navigator.clipboard.writeText(shareLink).then(() => {
+                                showToast('Enlace de la partida copiado al portapapeles!');
+                            }).catch(err => {
+                                console.error('Error al copiar al portapapeles:', err);
+                                showToast('Error al copiar el enlace.');
+                            });
+                        });
+                } else {
+                    // Fallback for browsers that do not support Web Share API
+                    navigator.clipboard.writeText(shareLink).then(() => {
+                        showToast('Enlace de la partida copiado al portapapeles!');
+                    }).catch(err => {
+                        console.error('Error al copiar al portapapeles:', err);
+                        showToast('Error al copiar el enlace.');
+                    });
+                }
+            }
+        }
+
+        function actualizarNumImpostores() {
+            let num = parseInt(document.getElementById('num-impostores').value);
+            if (partidaActual && esCreador) {
+                const numJugadores = partidaActual.jugadores.length;
+                if (num > numJugadores) {
+                    num = numJugadores;
+                    document.getElementById('num-impostores').value = num;
+                    alert('No puede haber más impostores que jugadores.');
+                }
+                partidaActual.numImpostores = num;
+            }
+        }
+
+        function iniciarPartida() {
+            if (!partidaActual || !esCreador) return;
+            
+            const paquetesSeleccionados = Array.from(
+                document.querySelectorAll('.paquete-card.selected')
+            ).map(el => el.dataset.id);
+            
+            if (paquetesSeleccionados.length === 0) {
+                alert('Selecciona al menos un paquete');
+                return;
+            }
+            
+            socket.emit('empezar-partida', {
+                codigo: partidaActual.codigo,
+                paquetes: paquetesSeleccionados, // Send selected packages directly
+                usuarioUuid: currentUserUuid
+            });
+        }
+
+        function siguienteTurno() {
+            socket.emit('siguiente-turno', { codigo: partidaActual.codigo });
+        }
+
+        function votar(jugadorId) {
+            // Update miVotoActual locally for immediate feedback
+            if (miVotoActual === jugadorId) {
+                miVotoActual = null; // Unvote
+            } else {
+                miVotoActual = jugadorId; // Vote or change vote
+            }
+            socket.emit('votar', {
+                codigo: partidaActual.codigo,
+                votadoId: jugadorId,
+                usuarioUuid: currentUserUuid // Send user's UUID with the vote
+            });
+        }
+
+        function volverJugar() {
+            document.getElementById('pantalla-final').classList.add('hidden'); // Explicitly hide final screen
+            socket.emit('volver-jugar', { codigo: partidaActual.codigo, usuarioUuid: currentUserUuid });
+        }
+
+        function mostrarListaPaquetes(paquetes) {
+            const container = document.getElementById('lista-paquetes-partida');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            const paquetesSeleccionadosActuales = partidaActual.paquetes || [];
+
+            paquetes.filter(paquete => paquete.num_palabras >= 1).forEach(paquete => {
+                // Only show packages created by the current user
+                if (paquete.creador_uuid !== currentUserUuid) {
+                    return; 
+                }
+
+                const div = document.createElement('div');
+                div.className = 'paquete-card';
+                div.dataset.id = paquete.id;
+                div.onclick = () => togglePaquete(div);
+                
+                if (paquetesSeleccionadosActuales.includes(paquete.id)) {
+                    div.classList.add('selected');
+                }
+
+                div.innerHTML = `
+                    <div>
+                        <strong>${paquete.nombre}</strong>
+                        <div style="font-size: 0.9em; color: #666;">
+                            ${paquete.num_palabras} palabras
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function eliminarPaquete(paqueteId) {
+            if (confirm('¿Estás seguro de que quieres eliminar este paquete?')) {
+                socket.emit('eliminar-paquete', { paqueteId: paqueteId, usuarioUuid: currentUserUuid });
+            }
+        }
+
+        function togglePermisoAnadirPalabras(paqueteId, permitir) {
+            socket.emit('actualizar-permiso-paquete', { paqueteId: paqueteId, permitir: permitir, usuarioUuid: currentUserUuid });
+        }
+
+        function togglePaquete(element) {
+            element.classList.toggle('selected');
+            const paquetesSeleccionados = document.querySelectorAll('.paquete-card.selected').length;
+            document.getElementById('info-paquetes').textContent = paquetesSeleccionados;
+        }
+
+        function toggleRol(forceShow = false) {
+            const rolDiv = document.getElementById('rol-ocultable');
+            const btnVerRol = document.getElementById('btn-ver-rol');
+            const btnOcultarRol = document.getElementById('btn-ocultar-rol');
+
+            if (forceShow) {
+                rolDiv.classList.remove('hidden');
+            } else {
+                rolDiv.classList.toggle('hidden');
+            }
+
+            if (rolDiv.classList.contains('hidden')) {
+                btnVerRol.classList.remove('hidden');
+                btnOcultarRol.classList.add('hidden');
+            } else {
+                btnVerRol.classList.add('hidden');
+                btnOcultarRol.classList.remove('hidden');
+            }
+        }
+
+        function mostrarMiRol() {
+            const container = document.getElementById('mi-rol-contenido');
+            
+            if (miRol.esImpostor) {
+                container.innerHTML = `
+                    <div class="impostor-warning">
+                        <h2>🎭 ERES EL IMPOSTOR</h2>
+                        <p style="margin-top: 10px;">Intenta descubrir el tema sin que te descubran</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="palabra-display">
+                        <p style="color: #666; margin-bottom: 10px;">Tu palabra es:</p>
+                        <div class="palabra">${miRol.palabra}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function actualizarJuego() {
+            const jugadoresActivos = partidaActual.jugadores.filter(j => j.expulsado === false);
+            const turnoIdx = partidaActual.ordenTurnos[partidaActual.turnoActual];
+            const jugadorTurno = jugadoresActivos[turnoIdx];
+            
+            document.getElementById('nombre-sala-juego').textContent = partidaActual.nombrePartida.substring(0, 20);
+            document.getElementById('ronda-actual').textContent = partidaActual.ronda;
+            
+            document.getElementById('votacion').classList.add('hidden');
+            document.getElementById('resultado-votacion').classList.add('hidden');
+            
+            const turnoActualDiv = document.getElementById('turno-actual');
+            const siguienteBtn = turnoActualDiv.querySelector('button');
+            const nombreTurnoSpan = document.getElementById('nombre-turno');
+
+            if (jugadorTurno) {
+                turnoActualDiv.classList.remove('hidden');
+                if (jugadorTurno.id === miId) {
+                    siguienteBtn.classList.remove('hidden');
+                    nombreTurnoSpan.textContent = 'Es tu turno';
+                } else {
+                    siguienteBtn.classList.add('hidden');
+                    nombreTurnoSpan.textContent = jugadorTurno.nombre;
+                }
+            } else {
+                turnoActualDiv.classList.add('hidden');
+            }
+        }
+
+        let miVotoActual = null; // Track the current player's vote
+
+        function mostrarVotacion() {
+            document.getElementById('turno-actual').classList.add('hidden');
+            document.getElementById('votacion').classList.remove('hidden');
+            
+            const container = document.getElementById('opciones-votacion');
+            container.innerHTML = '';
+            
+            const jugadoresActivos = partidaActual.jugadores.filter(j => j.expulsado === false);
+            
+            jugadoresActivos.forEach(jugador => {
+                if (!jugador || !jugador.id || !jugador.nombre) {
+                    console.error('Objeto de jugador inválido encontrado:', jugador);
+                    return; // Omitir este jugador
+                }
+                const playerVoteContainer = document.createElement('div');
+                playerVoteContainer.className = 'player-vote-container';
+                playerVoteContainer.dataset.id = jugador.id;
+                playerVoteContainer.onclick = () => votar(jugador.id);
+
+                const progressBar = document.createElement('div');
+                progressBar.className = 'vote-progress-bar';
+                progressBar.id = `progress-${jugador.id}`;
+                playerVoteContainer.appendChild(progressBar);
+
+                const playerName = document.createElement('span');
+                playerName.className = 'player-name';
+                playerName.textContent = jugador.nombre;
+                playerVoteContainer.appendChild(playerName);
+
+                const voteCount = document.createElement('span');
+                voteCount.className = 'vote-count';
+                voteCount.id = `count-${jugador.id}`;
+                voteCount.textContent = '0'; // Initial vote count
+                playerVoteContainer.appendChild(voteCount);
+                
+                container.appendChild(playerVoteContainer);
+            });
+
+            // Request initial vote counts from server
+            socket.emit('obtener-votos', { codigo: partidaActual.codigo });
+        }
+
+        function mostrarResultadoVotacion(data) {
+            document.getElementById('votacion').classList.add('hidden');
+            document.getElementById('resultado-votacion').classList.remove('hidden');
+            
+            const container = document.getElementById('info-expulsado');
+            container.innerHTML = ''; // Clear previous content
+
+            if (data.jugador) {
+                container.innerHTML = `
+                    <div class="player-card expulsado">
+                        ${data.jugador.nombre}
+                    </div>
+                    <p style="text-align: center; margin: 20px 0; font-size: 1.2em;">
+                        ${data.jugador.esImpostor ? '🎭 ¡Era el IMPOSTOR!' : '😢 NO era el impostor'}
+                    </p>
+                    <div style="text-align: center; color: #666;">
+                        Votos recibidos: ${data.votos[data.jugador.id] || 0}
+                    </div>
+                `;
+            } else {
+                // Handle case where no one was expelled (e.g., tie)
+                container.innerHTML = `
+                    <p style="text-align: center; margin: 20px 0; font-size: 1.2em;">
+                        ${data.mensaje || 'Nadie fue expulsado.'}
+                    </p>
+                    <div style="text-align: center; color: #666;">
+                        Votos totales: ${Object.values(data.votos).reduce((sum, count) => sum + count, 0)}
+                    </div>
+                `;
+            }
+        }
+
+        function mostrarPantallaFinal(data) {
+            document.getElementById('pantalla-juego').classList.add('hidden');
+            document.getElementById('pantalla-final').classList.remove('hidden');
+            
+            if (data.ganador === 'inocentes') {
+                document.getElementById('titulo-final').textContent = '🎉 ¡VICTORIA INOCENTES!';
+                document.getElementById('mensaje-final').textContent = 'Los inocentes han ganado';
+            } else {
+                document.getElementById('titulo-final').textContent = '🎭 ¡VICTORIA IMPOSTORES!';
+                document.getElementById('mensaje-final').textContent = 'Los impostores han ganado';
+            }
+            
+            const container = document.getElementById('lista-jugadores-final');
+            container.innerHTML = '<h3 style="margin: 20px 0;">Jugadores:</h3>';
+            
+            data.partida.jugadores.forEach(jugador => {
+                const div = document.createElement('div');
+                div.className = 'player-card';
+                if (jugador.expulsado) div.classList.add('expulsado');
+                div.textContent = `${jugador.nombre} ${jugador.esImpostor ? '🎭' : ''}`;
+                container.appendChild(div);
+            });
+            
+            if (esCreador) {
+                document.getElementById('btn-volver-jugar').classList.remove('hidden');
+            }
+        }
+
+        // Socket listeners specific to partida.html
+        socket.on('partida-creada', (data) => {
+            partidaActual = data.partida;
+            const currentPlayer = partidaActual.jugadores.find(j => j.id === miId);
+            esCreador = currentPlayer ? currentPlayer.esCreador : false;
+            actualizarSalaEspera();
+            document.getElementById('pantalla-sala').classList.remove('hidden');
+        });
+
+        socket.on('unido-partida', (data) => {
+            partidaActual = data.partida;
+            const currentPlayer = partidaActual.jugadores.find(j => j.id === miId);
+            esCreador = currentPlayer ? currentPlayer.esCreador : false;
+            actualizarSalaEspera();
+            document.getElementById('pantalla-sala').classList.remove('hidden');
+        });
+
+        socket.on('actualizar-partida', (partida) => {
+            console.log('Datos de la partida recibidos:', partida); // LOG PARA DEBUG
+            console.log('Actualizar Partida recibido. Estado:', partida.estado, 'para jugador:', miId);
+            document.getElementById('pantalla-final').classList.add('hidden'); // Ensure final screen is hidden
+            partidaActual = partida;
+            // Convert votos object back to Map
+            if (partidaActual.votos && !(partidaActual.votos instanceof Map)) {
+                partidaActual.votos = new Map(Object.entries(partidaActual.votos));
+            }
+            
+            if (partida.estado === 'esperando') {
+                actualizarSalaEspera();
+            } else if (partida.estado === 'jugando') {
+                actualizarJuego();
+            } else if (partida.estado === 'votacion') {
+                mostrarVotacion();
+            }
+        });
+
+        socket.on('partida-iniciada', (partida) => {
+            partidaActual = partida;
+            document.getElementById('pantalla-final').classList.add('hidden'); // Hide final screen
+            document.getElementById('pantalla-sala').classList.add('hidden');
+            document.getElementById('pantalla-juego').classList.remove('hidden');
+            toggleRol(true); // Mostrar el rol por defecto
+            actualizarJuego(); // Call actualizarJuego to update the UI immediately
+        });
+
+        socket.on('tu-rol', (data) => {
+            miRol = data;
+            mostrarMiRol();
+        });
+
+        socket.on('jugador-expulsado', (data) => {
+            mostrarResultadoVotacion(data);
+        });
+
+        socket.on('partida-finalizada', (data) => {
+            mostrarPantallaFinal(data);
+        });
+
+        socket.on('lista-paquetes', (paquetes) => {
+            mostrarListaPaquetes(paquetes);
+        });
+
+        socket.on('actualizar-tiempo', (data) => {
+            const tiempoEl = document.getElementById('tiempo-votacion');
+            if (tiempoEl) {
+                tiempoEl.textContent = data.tiempoRestante;
+            }
+        });
+
+        socket.on('actualizar-votos', (data) => {
+            const { conteoVotos } = data;
+            const jugadoresActivos = partidaActual.jugadores.filter(j => j.expulsado === false);
+            const totalVotosEmitidos = Object.values(conteoVotos).reduce((sum, count) => sum + count, 0);
+
+            jugadoresActivos.forEach(jugador => {
+                const progressBar = document.getElementById(`progress-${jugador.id}`);
+                const voteCountEl = document.getElementById(`count-${jugador.id}`);
+                const playerVoteContainer = progressBar.closest('.player-vote-container');
+
+                const votosJugador = conteoVotos[jugador.id] || 0;
+                voteCountEl.textContent = votosJugador;
+
+                // Calculate percentage for progress bar
+                let percentage = 0;
+                if (totalVotosEmitidos > 0) {
+                    percentage = (votosJugador / totalVotosEmitidos) * 100;
+                }
+                progressBar.style.width = `${percentage}%`;
+
+                // Highlight if current user voted for this player
+                if (miVotoActual === jugador.id) {
+                    playerVoteContainer.classList.add('voted-by-me');
+                } else {
+                    playerVoteContainer.classList.remove('voted-by-me');
+                }
+            });
+        });
+
+        socket.on('qr-generado', (data) => {
+            // This modal is in index.html, so we need to ensure it's shown
+            // or move it to a common modal file. For now, assuming it's globally accessible.
+            document.getElementById('qr-image').src = data.qrCode;
+            document.getElementById('qr-container').classList.remove('hidden');
+            document.getElementById('modal-compartir').classList.remove('hidden'); // Show the modal
+        });
+
+        function actualizarSalaEspera() {
+            document.getElementById('pantalla-final').classList.add('hidden'); // Hide final screen
+            document.getElementById('nombre-sala').textContent = partidaActual.nombrePartida;
+            const listaJugadores = document.getElementById('lista-jugadores');
+            listaJugadores.innerHTML = '';
+            
+            partidaActual.jugadores.forEach(jugador => {
+                const div = document.createElement('div');
+                div.className = 'player-card';
+                div.textContent = jugador.nombre;
+                listaJugadores.appendChild(div);
+            });
+            
+            document.getElementById('num-jugadores').textContent = partidaActual.jugadores.length;
+            document.getElementById('info-impostores').textContent = partidaActual.numImpostores || 1;
+            document.getElementById('info-paquetes').textContent = partidaActual.paquetes?.length || 0;
+
+            if (esCreador) {
+                document.getElementById('config-partida').classList.remove('hidden');
+                document.getElementById('btn-empezar-partida').classList.remove('hidden');
+                document.getElementById('num-impostores').value = partidaActual.numImpostores;
+                socket.emit('obtener-paquetes', { usuarioUuid: currentUserUuid });
+            } else {
+                document.getElementById('config-partida').classList.add('hidden');
+                document.getElementById('btn-empezar-partida').classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

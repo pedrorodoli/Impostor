@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMPOSTOR - Paquetes</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Pantalla paquetes -->
+        <div id="pantalla-paquetes">
+            <div class="top-bar">
+                <button class="back-btn" onclick="volverInicio()">← VOLVER</button>
+                <button class="btn-primary" onclick="mostrarCrearPaquete()" style="width: auto;">
+                    + NUEVO
+                </button>
+            </div>
+            
+            <div class="lobby-header">
+                <h1>MIS PAQUETES</h1>
+            </div>
+            
+            <div class="card">
+                <div id="lista-mis-paquetes"></div>
+            </div>
+        </div>
+
+        <!-- Pantalla Detalle Paquete -->
+        <div id="pantalla-detalle-paquete" class="hidden">
+            <div class="top-bar">
+                <button class="back-btn" onclick="mostrarPaquetes()">← MIS PAQUETES</button>
+                <button id="btn-compartir-paquete" class="share-btn" onclick="compartirPaquete()">🔗 COMPARTIR</button>
+            </div>
+            <div class="lobby-header">
+                <h1 id="nombre-paquete-detalle"></h1>
+                <p>Palabras totales: <span id="total-palabras-paquete">0</span></p>
+            </div>
+            <div class="card" id="card-compartir-paquete">
+                <div class="input-group" style="display: flex; align-items: center; justify-content: space-between;">
+                    <label style="margin-bottom: 0;">Permitir que otros añadan palabras</label>
+                    <label class="switch">
+                        <input type="checkbox" id="compartir-paquete-switch" onchange="actualizarEstadoCompartirPaquete()">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="card" id="card-anadir-palabra">
+                <h3>Añadir Palabra</h3>
+                <div class="input-group" style="display: flex; gap: 10px;">
+                    <input type="text" id="palabra-input" placeholder="Escribe una palabra..." onkeydown="if(event.key === 'Enter') anadirPalabra()">
+                    <button class="btn-success" style="width: auto;" id="btn-anadir-palabra" onclick="anadirPalabra()">+</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Mis Palabras Añadidas</h3>
+                <div id="lista-mis-palabras"></div>
+            </div>
+             <div class="card" id="card-eliminar-paquete">
+                <button id="btn-eliminar-paquete" class="btn-danger" onclick="eliminarPaquete()">
+                    🗑️ ELIMINAR PAQUETE
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Crear Paquete -->
+        <div id="modal-crear-paquete" class="modal hidden">
+            <div class="modal-content">
+                <h2>Nuevo Paquete de Palabras</h2>
+                <div class="input-group">
+                    <label>NOMBRE DEL PAQUETE</label>
+                    <input type="text" id="nombre-paquete-input" placeholder="Mi paquete genial">
+                </div>
+                <button class="btn-primary" onclick="crearPaquete()">+ CREAR</button>
+                <button class="btn-secondary" onclick="cerrarCrearPaquete()" style="margin-top: 10px;">CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Ensure currentUserUuid is set
+            if (!currentUserUuid) {
+                currentUserUuid = getOrCreateUserUuid();
+            }
+
+            // Check for paqueteId in URL on page load
+            const urlParams = new URLSearchParams(window.location.search);
+            const paqueteId = urlParams.get('paquete');
+            if (paqueteId) {
+                // If a paqueteId is present, show the detail screen
+                document.getElementById('pantalla-paquetes').classList.add('hidden');
+                document.getElementById('pantalla-detalle-paquete').classList.remove('hidden');
+                socket.emit('obtener-detalle-paquete', { paqueteId, creadorUuid: currentUserUuid });
+            } else {
+                // Otherwise, show the list of packages
+                socket.emit('obtener-mis-paquetes', { usuarioUuid: currentUserUuid });
+            }
+        });
+
+        // Functions specific to paquetes.html
+        function mostrarCrearPaquete() {
+            document.getElementById('modal-crear-paquete').classList.remove('hidden');
+        }
+
+        function cerrarCrearPaquete() {
+            document.getElementById('modal-crear-paquete').classList.add('hidden');
+        }
+
+        function crearPaquete() {
+            const nombre = document.getElementById('nombre-paquete-input').value.trim();
+
+            if (!nombre) {
+                showToast('El nombre del paquete no puede estar vacío.');
+                return;
+            }
+            socket.emit('crear-paquete', { nombre, creadorUuid: currentUserUuid });
+            cerrarCrearPaquete();
+        }
+
+        function mostrarDetallePaquete(paqueteId) {
+            document.getElementById('pantalla-paquetes').classList.add('hidden');
+            document.getElementById('pantalla-detalle-paquete').classList.remove('hidden');
+            socket.emit('obtener-detalle-paquete', { paqueteId, creadorUuid: currentUserUuid });
+            history.pushState(null, '', `/paquetes.html?paquete=${paqueteId}`);
+        }
+
+        function actualizarEstadoCompartirPaquete() {
+            const esCompartido = document.getElementById('compartir-paquete-switch').checked;
+            if (paqueteActual && paqueteActual.creador_uuid === currentUserUuid) {
+                socket.emit('actualizar-estado-compartir-paquete', { paqueteId: paqueteActual.id, esCompartido, creadorUuid: currentUserUuid });
+            }
+        }
+
+        function anadirPalabra() {
+            const palabra = document.getElementById('palabra-input').value.trim();
+            console.log('Intentando añadir palabra:', { palabra, paqueteActual, currentUserUuid });
+            if (!palabra) {
+                showToast('La palabra no puede estar vacía.');
+                return;
+            }
+            if (!paqueteActual) {
+                showToast('No se ha cargado ningún paquete para añadir palabras.');
+                return;
+            }
+            socket.emit('anadir-palabra', { paqueteId: paqueteActual.id, palabra, creadorUuid: currentUserUuid });
+            document.getElementById('palabra-input').value = '';
+        }
+
+        function eliminarPalabra(palabraId) {
+            if (confirm('¿Seguro que quieres eliminar esta palabra?')) {
+                socket.emit('eliminar-palabra', { palabraId, creadorUuid: currentUserUuid });
+            }
+        }
+
+        function eliminarPaquete() {
+            if (!paqueteActual) {
+                showToast('No se ha cargado ningún paquete para eliminar.');
+                return;
+            }
+            if (confirm('¿Seguro que quieres eliminar este paquete? Se borrará para todos los que lo usen.')) {
+                socket.emit('eliminar-paquete', { paqueteId: paqueteActual.id, creadorUuid: currentUserUuid });
+            }
+        }
+
+        function compartirPaquete() {
+            const shareLink = window.location.href;
+            navigator.clipboard.writeText(shareLink).then(() => {
+                showToast('Enlace del paquete copiado al portapapeles!');
+            }).catch(err => {
+                console.error('Error al copiar al portapapeles:', err);
+                showToast('Error al copiar el enlace.');
+            });
+        }
+
+        // Socket listeners specific to paquetes.html
+        socket.on('lista-mis-paquetes', (paquetes) => {
+            const listaPaquetes = document.getElementById('lista-mis-paquetes');
+            listaPaquetes.innerHTML = '';
+            if (paquetes.length === 0) {
+                listaPaquetes.innerHTML = '<p style="text-align: center; color: #666;">Aún no has creado ningún paquete.</p>';
+                return;
+            }
+            paquetes.forEach(paquete => {
+                const paqueteCard = document.createElement('div');
+                paqueteCard.className = 'paquete-card';
+                paqueteCard.innerHTML = `
+                    <div>
+                        <strong>${paquete.nombre}</strong>
+                        <div style="font-size: 0.9em; color: #666;">
+                            ${paquete.num_palabras} palabras ${paquete.es_compartido ? '(Compartido)' : ''}
+                        </div>
+                    </div>
+                    <button class="btn-blue" style="width: auto; padding: 10px 20px;" onclick="mostrarDetallePaquete('${paquete.id}')">VER</button>
+                `;
+                listaPaquetes.appendChild(paqueteCard);
+            });
+        });
+
+        socket.on('paquete-actualizado', (data) => {
+            if (paqueteActual && paqueteActual.id === data.paqueteId) {
+                document.getElementById('total-palabras-paquete').textContent = data.totalPalabras;
+            }
+        });
+
+        socket.on('palabra-anadida', (palabra) => {
+            console.log('palabra-anadida event received:', palabra);
+            console.log('paqueteActual:', paqueteActual);
+            console.log('currentUserUuid:', currentUserUuid);
+
+             if (paqueteActual && paqueteActual.id === palabra.paquete_id) {
+                console.log('Package ID matches.');
+                // Only add to the list if the current user created the word
+                if (palabra.creador_uuid === currentUserUuid) {
+                    console.log('Creator UUID matches. Appending word to list.');
+                    const misPalabras = document.getElementById('lista-mis-palabras');
+                    const placeholder = misPalabras.querySelector('p');
+                    if(placeholder) placeholder.remove();
+
+                    const palabraItem = document.createElement('div');
+                    palabraItem.className = 'palabra-item';
+                    palabraItem.id = `palabra-${palabra.id}`;
+
+                    const deleteButton = `<button class="delete-word-btn" onclick="eliminarPalabra(${palabra.id})">X</button>`;
+
+                    palabraItem.innerHTML = `
+                        <span>${palabra.palabra}</span>
+                        ${deleteButton}
+                    `;
+                    misPalabras.appendChild(palabraItem);
+                } else {
+                    console.log('Creator UUID does not match. Not appending word to list.');
+                }
+                // Update total words count for any new word added to this package
+                document.getElementById('total-palabras-paquete').textContent = parseInt(document.getElementById('total-palabras-paquete').textContent) + 1;
+             } else {
+                console.log('Package ID does not match or paqueteActual is null.');
+             }
+        });
+
+        socket.on('palabra-eliminada', (data) => {
+            const el = document.getElementById(`palabra-${data.palabraId}`);
+            if (el) {
+                el.remove();
+            }
+        });
+
+        socket.on('paquete-creado', (data) => {
+            console.log('paquete-creado recibido. Emitiendo obtener-mis-paquetes con usuarioUuid:', currentUserUuid);
+            socket.emit('obtener-mis-paquetes', { usuarioUuid: currentUserUuid });
+            // After refreshing the list, navigate to the new package's details
+            if (data && data.id) {
+                mostrarDetallePaquete(data.id);
+            }
+        });
+
+        socket.on('paquete-eliminado', () => {
+            mostrarPaquetes(); // Go back to the list of packages
+        });
+
+        socket.on('paquete-estado-compartir-actualizado', (data) => {
+            if (paqueteActual && paqueteActual.id === data.paqueteId) {
+                paqueteActual.es_compartido = data.esCompartido;
+                // Re-renderizar el detalle del paquete para actualizar el estado del botón de añadir palabra
+                mostrarDetallePaquete(paqueteActual.id);
+            }
+        });
+
+        socket.on('detalle-paquete', (data) => {
+            paqueteActual = data.paquete;
+            const palabras = data.palabras;
+
+            const listaMisPalabras = document.getElementById('lista-mis-palabras');
+            listaMisPalabras.innerHTML = ''; // Clear previous words
+
+            const esCreador = paqueteActual.creador_uuid === currentUserUuid;
+
+            // Get references to the new card elements
+            const cardCompartirPaquete = document.getElementById('card-compartir-paquete');
+            const cardAnadirPalabra = document.getElementById('card-anadir-palabra');
+            const cardEliminarPaquete = document.getElementById('card-eliminar-paquete');
+            const compartirPaqueteSwitch = document.getElementById('compartir-paquete-switch');
+
+            // Conditional display for creator
+            if (esCreador) {
+                cardCompartirPaquete.classList.remove('hidden');
+                cardEliminarPaquete.classList.remove('hidden');
+                compartirPaqueteSwitch.checked = paqueteActual.es_compartido; // Set switch state
+                cardAnadirPalabra.classList.remove('hidden');
+            } else {
+                cardCompartirPaquete.classList.add('hidden');
+                cardEliminarPaquete.classList.add('hidden');
+
+                if (paqueteActual.es_compartido) {
+                    cardAnadirPalabra.classList.remove('hidden');
+                    // Remove any existing private message
+                    const privateMessage = document.getElementById('private-package-message');
+                    if (privateMessage) privateMessage.remove();
+                } else {
+                    cardAnadirPalabra.classList.add('hidden');
+                    // Display 'Paquete privado' message
+                    let privateMessage = document.getElementById('private-package-message');
+                    if (!privateMessage) {
+                        privateMessage = document.createElement('div');
+                        privateMessage.id = 'private-package-message';
+                        privateMessage.className = 'card';
+                        privateMessage.innerHTML = '<p style="text-align: center; color: #666;">Paquete privado, no puedes añadir palabras.</p>';
+                        cardAnadirPalabra.parentNode.insertBefore(privateMessage, cardAnadirPalabra.nextSibling);
+                    }
+                }
+            }
+
+            // Display only words created by the current user
+            const misPalabras = palabras.filter(palabra => palabra.creador_uuid === currentUserUuid);
+
+            if (misPalabras.length === 0) {
+                listaMisPalabras.innerHTML = '<p style="text-align: center; color: #666;">Aún no has añadido palabras a este paquete.</p>';
+            } else {
+                misPalabras.forEach(palabra => {
+                    const palabraItem = document.createElement('div');
+                    palabraItem.className = 'palabra-item';
+                    palabraItem.id = `palabra-${palabra.id}`;
+                    
+                    let deleteButton = '';
+                    // Only allow deletion if the current user is the creator of the word
+                    if (palabra.creador_uuid === currentUserUuid) { // This check is redundant now but kept for clarity
+                        deleteButton = `<button class="delete-word-btn" onclick="eliminarPalabra(${palabra.id})">X</button>`;
+                    }
+
+                    palabraItem.innerHTML = `
+                        <span>${palabra.palabra}</span>
+                        ${deleteButton}
+                    `;
+                    listaMisPalabras.appendChild(palabraItem);
+                });
+            }
+
+            // Update total words count to reflect all words in the package
+            document.getElementById('total-palabras-paquete').textContent = palabras.length;
+
+            // The btnEliminarPaquete logic is now handled by cardEliminarPaquete visibility
+        });
+    </script>
+</body>
+</html>

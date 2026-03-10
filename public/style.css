@@ -1,0 +1,495 @@
+* {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial Black', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.3);
+            border: 4px solid black;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 3em;
+            text-align: center;
+            /* background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent; */
+            margin-bottom: 10px;
+            color: #333; /* Set a default text color */
+        }
+
+        h2 {
+            font-size: 1.2em;
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: normal;
+        }
+
+        h3 {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            border: 3px solid black;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+        }
+
+        button {
+            width: 100%;
+            padding: 18px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border: 3px solid black;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+            transition: transform 0.1s, box-shadow 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+        }
+
+        button:active {
+            /* No visual changes on active state as per user request */
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4ade80, #3b82f6);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: black;
+        }
+
+        .btn-pink {
+            background: linear-gradient(135deg, #fda4af, #f472b6);
+            color: black;
+        }
+
+        .btn-blue {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-yellow {
+            background: #fbbf24;
+            color: black;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .button-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .lobby-header {
+            /* background: linear-gradient(135deg, #667eea, #764ba2); */ /* Removed background as per user request */
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .lobby-header h1 {
+            color: white;
+            font-size: 2.5em;
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+            -webkit-background-clip: unset;
+            -webkit-text-fill-color: white;
+        }
+
+        .lobby-header p {
+            color: white;
+            font-size: 1.2em;
+            margin-top: 5px;
+        }
+
+        .game-room {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 15px;
+            border: 3px solid black;
+            margin-bottom: 15px;
+        }
+
+        .player-card {
+            background: #fbbf24;
+            padding: 15px;
+            border-radius: 10px;
+            border: 3px solid black;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .player-card.expulsado {
+            background: #9ca3af;
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        .info-box {
+            background: #fda4af;
+            padding: 15px;
+            border-radius: 10px;
+            border: 3px solid black;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .code-display {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 3px solid black;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .code-display .code {
+            font-size: 2em;
+            font-weight: bold;
+            letter-spacing: 3px;
+        }
+
+        .paquete-card {
+            background: #fbbf24;
+            padding: 15px;
+            border-radius: 10px;
+            border: 3px solid black;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .paquete-card.selected {
+            background: #10b981;
+            color: white;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .back-btn {
+            background: white;
+            border: 3px solid black;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.3);
+        }
+
+        .share-btn {
+            background: #3b82f6;
+            color: white;
+            border: 3px solid black;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.3);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .turno-indicator {
+            background: linear-gradient(135deg, #4ade80, #3b82f6);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 3px solid black;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+        }
+
+        .palabra-display {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            border: 4px solid black;
+            text-align: center;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+        }
+
+        .palabra-display .palabra {
+            font-size: 2em;
+            font-weight: bold;
+            color: #764ba2;
+        }
+
+        .impostor-warning {
+            background: #ef4444;
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            border: 3px solid black;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+        }
+
+        .votacion-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .vote-btn {
+            padding: 15px;
+            font-size: 1em;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            border: 4px solid black;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .qr-code {
+            margin: 20px 0;
+        }
+
+        .share-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Switch styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        .palabra-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f3f4f6;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 2px solid black;
+        }
+
+        .palabra-item .delete-word-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: none;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2.5em;
+            }
+            
+            .button-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+/* New styles for voting UI */
+.player-vote-container {
+    position: relative;
+    background: #f3f4f6;
+    padding: 15px;
+    border-radius: 10px;
+    border: 3px solid black;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+    margin-bottom: 10px;
+    cursor: pointer;
+    overflow: hidden; /* Ensures progress bar stays within bounds */
+}
+
+.player-vote-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+}
+
+.player-vote-container.voted-by-me {
+    /* No border or shadow change on vote as per user request */
+}
+
+.vote-progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%; /* Controlled by JS */
+    background: linear-gradient(90deg, #a7f3d0, #34d399); /* Greenish gradient */
+    transition: width 0.3s ease-in-out;
+    z-index: 1; /* Behind text */
+}
+
+.player-name,
+.vote-count {
+    position: relative;
+    z-index: 2; /* Above progress bar */
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #333;
+}
+
+.player-name {
+    float: left;
+}
+
+.vote-count {
+    float: right;
+}
+
+.player-vote-container.voted-by-me .player-name,
+.player-vote-container.voted-by-me .vote-count {
+    color: #333; /* Text color remains the same */
+}
+
+.player-vote-container.voted-by-me .vote-progress-bar {
+    background: linear-gradient(90deg, #a7f3d0, #34d399); /* Background remains the same */
+}

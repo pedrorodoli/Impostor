@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMPOSTOR - Juego</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+    <script>
+        window.onload = function() {
+            const nombreGuardado = localStorage.getItem('nombreJugador');
+            if (nombreGuardado) {
+                document.getElementById('nombre-input').value = nombreGuardado;
+            }
+        };
+
+        function empezar() {
+            const nombre = document.getElementById('nombre-input').value.trim();
+            if (!nombre) {
+                alert('Por favor, ingresa tu nombre');
+                return;
+            }
+            
+            miNombre = nombre;
+            localStorage.setItem('nombreJugador', nombre);
+            mostrarLobby();
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Pantalla de inicio -->
+        <div id="pantalla-inicio" class="card">
+            <h1>IMPOSTOR</h1>
+            <h2>¿Quién es el impostor?</h2>
+
+            <div class="input-group">
+                <label>TU NOMBRE</label>
+                <input type="text" id="nombre-input" placeholder="Pedro">
+            </div>
+
+            <div class="button-row" style="grid-template-columns: 1fr;">
+                <button class="btn-primary" onclick="empezar()">
+                    ▶ JUGAR
+                </button>
+                <button class="btn-pink" onclick="mostrarPaquetes()">
+                    📦 PAQUETES
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMPOSTOR - Lobby</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Pantalla de Lobby -->
+        <div id="pantalla-lobby">
+            <div class="top-bar">
+                <button class="back-btn" onclick="volverInicio()">← VOLVER</button>
+                 <button class="btn-primary" onclick="mostrarCrearPartidaModal()" style="width: auto;">
+                    + CREAR PARTIDA
+                </button>
+            </div>
+
+            <div class="lobby-header">
+                <h1>LOBBY</h1>
+                <p>Hola, <span id="nombre-usuario"></span></p>
+            </div>
+
+            <div id="partidas-disponibles" class="card">
+                <h3>PARTIDAS PÚBLICAS</h3>
+                <div id="lista-partidas">
+                    <!-- Las partidas se insertarán aquí dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Crear Partida -->
+        <div id="modal-crear-partida" class="modal hidden">
+            <div class="modal-content">
+                <h2>Crear Partida</h2>
+                <div class="input-group">
+                    <label>NOMBRE DE LA PARTIDA</label>
+                    <input type="text" id="nombre-partida-input" placeholder="Partida de...">
+                </div>
+                <div class="input-group">
+                    <label>CONTRASEÑA (opcional)</label>
+                    <input type="password" id="password-partida-input" placeholder="Dejar en blanco para pública">
+                </div>
+                <div class="input-group">
+                    <label>TIEMPO DE VOTACIÓN (segundos)</label>
+                    <input type="number" id="voting-time-input" value="30" min="10">
+                </div>
+                <button class="btn-primary" onclick="crearPartida()">
+                    + CREAR
+                </button>
+                <button class="btn-secondary" onclick="cerrarCrearPartidaModal()" style="margin-top: 10px;">
+                    CANCELAR
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Contraseña -->
+        <div id="modal-password" class="modal hidden">
+            <div class="modal-content">
+                <h2>Partida Privada</h2>
+                <p style="margin-bottom: 20px;">Esta partida requiere contraseña.</p>
+                <div class="input-group">
+                    <label>CONTRASEÑA</label>
+                    <input type="password" id="password-input" placeholder="Contraseña...">
+                </div>
+                <button class="btn-primary" onclick="intentarUnirseConPassword()">
+                    → UNIRSE
+                </button>
+                <button class="btn-secondary" onclick="cerrarPasswordModal()" style="margin-top: 10px;">
+                    CANCELAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Ensure currentUserUuid is set
+            if (!currentUserUuid) {
+                currentUserUuid = getOrCreateUserUuid();
+            }
+            // Set username in lobby
+            document.getElementById('nombre-usuario').textContent = miNombre;
+            socket.emit('obtener-partidas-publicas');
+
+            // Check for game code in URL on page load
+            const urlParams = new URLSearchParams(window.location.search);
+            const codigo = urlParams.get('codigo');
+            if (codigo) {
+                // If a game code is present, try to join the game
+                // This assumes the user has already entered their name on index.html
+                // and miNombre is available from script.js
+                unirsePartida(codigo, false); // Assuming public for now, will handle password later
+            }
+        });
+
+        // Functions specific to lobby.html
+        function mostrarCrearPartidaModal() {
+            document.getElementById('modal-crear-partida').classList.remove('hidden');
+        }
+
+        function cerrarCrearPartidaModal() {
+            document.getElementById('modal-crear-partida').classList.add('hidden');
+        }
+
+        function crearPartida() {
+            if (!miNombre) {
+                alert('Por favor, ingresa tu nombre primero');
+                return;
+            }
+
+            const nombrePartida = document.getElementById('nombre-partida-input').value.trim();
+            const password = document.getElementById('password-partida-input').value.trim();
+            const votingTime = document.getElementById('voting-time-input').value;
+
+            if (!nombrePartida) {
+                alert('El nombre de la partida no puede estar vacío.');
+                return;
+            }
+            
+            socket.emit('crear-partida', {
+                nombreJugador: miNombre,
+                nombrePartida: nombrePartida,
+                password: password,
+                numImpostores: 1,
+                votingTime: parseInt(votingTime),
+                creadorUuid: currentUserUuid
+            });
+            cerrarCrearPartidaModal();
+        }
+
+        function unirsePartida(codigo, tienePassword) {
+            partidaAUnirse = codigo;
+            if (tienePassword) {
+                document.getElementById('modal-password').classList.remove('hidden');
+            } else {
+                socket.emit('unirse-partida', {codigo: codigo, nombre: miNombre, usuarioUuid: currentUserUuid });
+            }
+        }
+
+        function intentarUnirseConPassword() {
+            const password = document.getElementById('password-input').value;
+            socket.emit('unirse-partida', {codigo: partidaAUnirse, nombre: miNombre, password: password, usuarioUuid: currentUserUuid });
+            cerrarPasswordModal();
+        }
+
+        function cerrarPasswordModal() {
+            document.getElementById('modal-password').classList.add('hidden');
+            document.getElementById('password-input').value = '';
+            partidaAUnirse = null;
+        }
+
+        // Socket listeners specific to lobby.html
+        socket.on('lista-partidas-publicas', (partidas) => {
+            const listaPartidas = document.getElementById('lista-partidas');
+            listaPartidas.innerHTML = ''; // Limpiar lista anterior
+
+            if (partidas.length === 0) {
+                listaPartidas.innerHTML = '<p style="text-align: center; color: #666;">No hay partidas públicas en este momento.</p>';
+                return;
+            }
+
+            partidas.forEach(partida => {
+                const partidaCard = document.createElement('div');
+                partidaCard.className = 'game-room'; // Reutilizando un estilo que se ve bien
+                partidaCard.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin-bottom: 5px;">${partida.nombrePartida}</h4>
+                            <p style="font-size: 0.9em; color: #555;">👥 ${partida.jugadores.length} jugadores</p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            ${partida.tienePassword ? '<span style="font-size: 1.5em;">🔒</span>' : ''}
+                            <button class="btn-blue" style="width: auto; padding: 10px 20px;" onclick="unirsePartida('${partida.codigo}', ${partida.tienePassword})">
+                                UNIRSE
+                            </button>
+                        </div>
+                    </div>
+                `;
+                listaPartidas.appendChild(partidaCard);
+            });
+        });
+    </script>
+</body>
+</html>
